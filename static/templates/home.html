@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hand Tracker</title>
+    <style>
+        /* Estilo básico para la página */
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        video, canvas {
+            margin-top: 20px;
+        }
+        .prediction {
+            margin-top: 20px;
+            font-size: 24px;
+        }
+    </style>
+    <!-- Importa las bibliotecas de MediaPipe necesarias para el seguimiento de manos -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+</head>
+<body>
+    <h1>Hand Tracker</h1>
+    <!-- Canvas para dibujar los resultados del seguimiento de manos -->
+    <canvas id="canvas" width="640" height="480"></canvas>
+    <!-- Div para mostrar la predicción del modelo -->
+    <div class="prediction" id="prediction">Prediction: </div>
+
+    <script>
+        // Obtiene referencias a los elementos de video, canvas y predicción
+        const videoElement = document.createElement('video');
+        const canvasElement = document.getElementById('canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const predictionElement = document.getElementById('prediction');
+
+        // Configura MediaPipe Hands
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        // Ajusta las opciones de MediaPipe Hands
+        hands.setOptions({
+            maxNumHands: 1, // Número máximo de manos a detectar
+            modelComplexity: 1, // Complejidad del modelo (1 es más preciso)
+            minDetectionConfidence: 0.5, // Confianza mínima para la detección
+            minTrackingConfidence: 0.5 // Confianza mínima para el seguimiento
+        });
+
+        // Establece la función a llamar cuando hay resultados de la detección de manos
+        hands.onResults(onResults);
+
+        // Inicializa la cámara y comienza a capturar frames
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({image: videoElement});
+            },
+            width: 640,
+            height: 480
+        });
+        camera.start();
+
+        // Función que se llama cuando hay resultados de la detección de manos
+        function onResults(results) {
+            // Guarda el contexto del canvas y limpia el canvas
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            // Aplica el efecto espejo
+            canvasCtx.scale(-1, 1);
+            canvasCtx.translate(-canvasElement.width, 0);
+            // Dibuja la imagen en el canvas
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            // Si se detectaron manos, dibuja los conectores y puntos de referencia
+            if (results.multiHandLandmarks) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#00FF00', lineWidth: 5});
+                    drawLandmarks(canvasCtx, landmarks, {color: '#FF0000', lineWidth: 2});
+
+                    // Captura la imagen de la mano
+                    const handImage = captureHandImage(landmarks, results.image);
+                    // Envía la imagen de la mano al servidor para la predicción
+                    predictHandSign(handImage);
+                }
+            }
+            // Restaura el contexto del canvas
+            canvasCtx.restore();
+        }
+
+        // Función para capturar la imagen de la mano
+        function captureHandImage(landmarks, image) {
+            // Calcula el cuadro delimitador alrededor de la mano
+            const bbox = calculateBoundingBox(landmarks);
+            // Crea un nuevo canvas para la imagen de la mano
+            const handCanvas = document.createElement('canvas');
+            const handCtx = handCanvas.getContext('2d');
+            handCanvas.width = bbox.width;
+            handCanvas.height = bbox.height;
+            // Dibuja la imagen de la mano en el nuevo canvas
+            handCtx.drawImage(image, bbox.x, bbox.y, bbox.width, bbox.height, 0, 0, bbox.width, bbox.height);
+            // Convierte el canvas a una URL de datos base64
+            return handCanvas.toDataURL('image/png');
+        }
+
+        // Función para calcular el cuadro delimitador alrededor de la mano
+        function calculateBoundingBox(landmarks) {
+            const xs = landmarks.map(landmark => landmark.x);
+            const ys = landmarks.map(landmark => landmark.y);
+            const minX = Math.min(...xs) * canvasElement.width;
+            const maxX = Math.max(...xs) * canvasElement.width;
+            const minY = Math.min(...ys) * canvasElement.height;
+            const maxY = Math.max(...ys) * canvasElement.height;
+
+            // Añade un margen adicional al cuadro delimitador
+            const margin = 40; // Aumenta el tamaño del margen según sea necesario
+            return {
+                x: Math.max(0, minX - margin),
+                y: Math.max(0, minY - margin),
+                width: Math.min(canvasElement.width, maxX + margin) - Math.max(0, minX - margin),
+                height: Math.min(canvasElement.height, maxY + margin) - Math.max(0, minY - margin)
+            };
+        }
+
+        // Función para enviar la imagen de la mano al servidor y obtener la predicción
+        function predictHandSign(dataURL) {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/predict_hand_sign/', true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.status === 'success') {
+                        // Actualiza el elemento de predicción con la respuesta del servidor
+                        predictionElement.textContent = 'Prediction: ' + response.prediction;
+                    } else {
+                        predictionElement.textContent = 'Prediction failed: ' + response.error;
+                    }
+                } else {
+                    predictionElement.textContent = 'Prediction failed';
+                }
+            };
+            xhr.onerror = function() {
+                predictionElement.textContent = 'An error occurred during prediction';
+            };
+            // Envía la imagen de la mano al servidor
+            xhr.send('image=' + encodeURIComponent(dataURL));
+        }
+
+        // Función para obtener el valor de una cookie específica
+        function getCookie(name) {
+            var cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                var cookies = document.cookie.split(';');
+                for (var i = 0; i < cookies.length; i++) {
+                    var cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+</body>
+</html>
