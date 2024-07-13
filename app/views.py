@@ -11,6 +11,9 @@ import tensorflow as tf
 from keras.models import load_model
 from PIL import Image
 import numpy as np
+from .forms import ImageForm
+import io
+
 
 model = load_model(os.path.join(settings.BASE_DIR, 'app/model/model.h5'))
 
@@ -48,3 +51,33 @@ def predict_hand_sign(request):
         return JsonResponse({'status': 'success', 'prediction': predicted_sign})
     except Exception as e:
         return JsonResponse({'status': 'error', 'error': str(e)})
+
+
+
+
+def one_image(request):
+    image_data_url = None
+    if request.method == 'POST':
+        form = ImageForm(request.POST, request.FILES)
+        if form.is_valid():
+            image = request.FILES['image']
+            image_data = image.read()
+            encoded_image = base64.b64encode(image_data).decode('utf-8')
+            image_data_url = f"data:image/{image.content_type.split('/')[-1]};base64,{encoded_image}"
+
+            image = Image.open(io.BytesIO(image_data))
+
+            image = image.convert('L')  # Convierte la imagen a escala de grises
+            image = image.resize((28, 28))  # Ajusta el tamaño
+            image = np.array(image) / 255.0  # Normaliza la imagen
+            image = np.expand_dims(image, axis=-1)
+            image = np.expand_dims(image, axis=0)
+
+            prediction = model.predict(image)
+            predicted_class = np.argmax(prediction, axis=1)[0]
+            predicted_sign = classes[predicted_class]
+
+            return render(request, 'one_image.html', {'form': form, 'image_data_url': image_data_url, 'predicted_sign': predicted_sign})
+    else:
+        form = ImageForm()
+    return render(request, 'one_image.html', {'form': form, 'image_data_url': image_data_url})
