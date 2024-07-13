@@ -54,6 +54,7 @@
         <div class="col-md-6">
           <canvas id="canvas" width="640" height="480"></canvas>
           <div class="prediction" id="prediction">Prediction:</div>
+          <div class="prediction" id="prediction_xception">Prediction Xception:</div>
         </div>
       </div>
     </div>
@@ -64,6 +65,7 @@
       const canvasElement = document.getElementById('canvas')
       const canvasCtx = canvasElement.getContext('2d')
       const predictionElement = document.getElementById('prediction')
+      const predictionElementXception = document.getElementById('prediction_xception')
       
       // Configura MediaPipe Hands
       const hands = new Hands({
@@ -156,16 +158,20 @@
           if (xhr.status === 200) {
             const response = JSON.parse(xhr.responseText)
             if (response.status === 'success') {
-              predictionElement.textContent = 'Prediction: ' + response.prediction
+              predictionElement.textContent = 'Trabajo Previo: ' + response.prediction
+              predictionElementXception.textContent = 'Xception: ' + response.prediction_xception
             } else {
               predictionElement.textContent = 'Prediction failed: ' + response.error
+              predictionElementXception.textContent = 'Prediction Xception failed: ' + response.error
             }
           } else {
             predictionElement.textContent = 'Prediction failed'
+            predictionElementXception.textContent = 'Prediction Xception failed: ' + response.error
           }
         }
         xhr.onerror = function () {
           predictionElement.textContent = 'An error occurred during prediction'
+          predictionElementXception.textContent = 'Prediction Xception failed: ' + response.error
         }
         xhr.send('image=' + encodeURIComponent(dataURL))
       }
