@@ -15,7 +15,7 @@ from .forms import ImageForm
 import io
 
 
-model_xception = load_model(os.path.join(settings.BASE_DIR, 'app/model/model_xception.h5'))
+# model_xception = load_model(os.path.join(settings.BASE_DIR, 'app/model/model_xception.h5'))
 model = load_model(os.path.join(settings.BASE_DIR, 'app/model/model.h5'))
 
 classes = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y']
@@ -46,16 +46,16 @@ def predict_hand_sign(request):
         predicted_class = np.argmax(prediction, axis=1)[0]
         predicted_sign = classes[predicted_class]
 
-        # ----------------- Modelo Xception -----------------
-        image_xception = Image.open(image_data).convert('RGB')
-        image_xception = image_xception.resize((71, 71))
-        image_xception = np.array(image_xception) / 255.0  # Normaliza la imagen
-        image_xception = np.expand_dims(image_xception, axis=0)
-        prediction_xception = model_xception.predict(image_xception)
-        predicted_class_xception = np.argmax(prediction_xception, axis=1)[0]
-        predicted_sign_xception = classes[predicted_class_xception]
+        # # ----------------- Modelo Xception -----------------
+        # image_xception = Image.open(image_data).convert('RGB')
+        # image_xception = image_xception.resize((71, 71))
+        # image_xception = np.array(image_xception) / 255.0  # Normaliza la imagen
+        # image_xception = np.expand_dims(image_xception, axis=0)
+        # prediction_xception = model_xception.predict(image_xception)
+        # predicted_class_xception = np.argmax(prediction_xception, axis=1)[0]
+        # predicted_sign_xception = classes[predicted_class_xception]
 
-        return JsonResponse({'status': 'success', 'prediction': predicted_sign, 'prediction_xception': predicted_sign_xception})
+        return JsonResponse({'status': 'success', 'prediction': predicted_sign, 'prediction_xception': "test"})
     except Exception as e:
         return JsonResponse({'status': 'error', 'error': str(e)})
 
@@ -85,16 +85,16 @@ def one_image(request):
 
 
             
-            # ----------------- Modelo Xception -----------------
-            image_xception = original_image.convert('RGB')
-            image_xception = image_xception.resize((71, 71))
-            image_xception = np.array(image_xception) / 255.0  # Normaliza la imagen
-            image_xception = np.expand_dims(image_xception, axis=0)
-            prediction_xception = model_xception.predict(image_xception)
-            predicted_class_xception = np.argmax(prediction_xception, axis=1)[0]
-            predicted_sign_xception = classes[predicted_class_xception]
+            # # ----------------- Modelo Xception -----------------
+            # image_xception = original_image.convert('RGB')
+            # image_xception = image_xception.resize((71, 71))
+            # image_xception = np.array(image_xception) / 255.0  # Normaliza la imagen
+            # image_xception = np.expand_dims(image_xception, axis=0)
+            # prediction_xception = model_xception.predict(image_xception)
+            # predicted_class_xception = np.argmax(prediction_xception, axis=1)[0]
+            # predicted_sign_xception = classes[predicted_class_xception]
 
-            return render(request, 'one_image.html', {'form': form, 'image_data_url': image_data_url, 'predicted_sign_xception': predicted_sign_xception, 'predicted_sign': predicted_sign})
+            return render(request, 'one_image.html', {'form': form, 'image_data_url': image_data_url, 'predicted_sign_xception': "predicted_sign_xception", 'predicted_sign': predicted_sign})
     else:
         form = ImageForm()
     return render(request, 'one_image.html', {'form': form, 'image_data_url': image_data_url})

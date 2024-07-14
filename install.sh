@@ -1,0 +1,11 @@
+pip3 install django
+pip3 install keras==2.15.0
+pip3 install numpy==1.24.3
+pip3 install tensorflow==2.15.0
+pip3 install joblib==1.2.0
+pip3 install scikit-learn==1.3.0
+pip3 install django-cors-headers
+pip3 install pillow==9.3.0
+pip3 install django-bootstrap-v5  
+pip3 install opencv-python
+pip3 install matplotlib
